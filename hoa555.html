@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Mô phỏng nước cứng – chuyển động ion</title>
+
+<style>
+body{
+    margin:0;
+    font-family:"Segoe UI",Arial,sans-serif;
+    background:linear-gradient(120deg,#e0f7fa,#f1f8ff);
+}
+header{
+    background:linear-gradient(270deg,#0077b6,#00b4d8);
+    color:white;
+    padding:30px;
+    text-align:center;
+}
+section{
+    max-width:1000px;
+    background:white;
+    margin:25px auto;
+    padding:25px;
+    border-radius:15px;
+    box-shadow:0 10px 25px rgba(0,0,0,0.15);
+}
+h2{
+    color:#0077b6;
+    border-left:6px solid #00b4d8;
+    padding-left:12px;
+}
+
+/* ===== BEAKER ===== */
+.lab{
+    display:flex;
+    justify-content:center;
+    margin-top:20px;
+}
+.beaker{
+    width:260px;
+    height:340px;
+    border:4px solid #555;
+    border-radius:0 0 25px 25px;
+    position:relative;
+    overflow:hidden;
+    background:#e3f6ff;
+}
+.water{
+    position:absolute;
+    bottom:0;
+    width:100%;
+    height:75%;
+    background:#b3e5fc;
+}
+
+/* ===== ION ===== */
+.ion{
+    position:absolute;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    font-weight:bold;
+    color:white;
+    user-select:none;
+}
+.Ca{ background:#e74c3c; }
+.Mg{ background:#9b59b6; }
+.Na{ background:#27ae60; }
+.Cl{ background:#2980b9; }
+.HCO3{ background:#f39c12; }
+
+/* ===== CẶN ===== */
+.cluster{
+    position:absolute;
+    bottom:6px;
+    left:110px;
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    background:#ccc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:10px;
+    font-weight:bold;
+    color:#555;
+    box-shadow: inset -4px -4px 8px rgba(0,0,0,0.25);
+}
+
+/* ===== EFFECT ===== */
+.foam{
+    position:absolute;
+    bottom:75%;
+    width:100%;
+    height:0;
+    background:white;
+    transition:height 3s;
+}
+.precipitate{
+    position:absolute;
+    bottom:0;
+    width:100%;
+    height:0;
+    background:#eee;
+    transition:height 3s;
+}
+
+/* ===== CONTROLS ===== */
+.controls{
+    text-align:center;
+    margin-top:15px;
+}
+select,button{
+    padding:10px 16px;
+    border-radius:20px;
+    border:none;
+    font-size:15px;
+    margin:5px;
+}
+button{
+    background:linear-gradient(135deg,#0077b6,#00b4d8);
+    color:white;
+    cursor:pointer;
+}
+button:hover{ transform:scale(1.05); }
+
+.clearBtn{
+    background:linear-gradient(135deg,#ff6b6b,#ff9f43);
+}
+
+.result{
+    display:none;
+    margin-top:20px;
+    padding:18px;
+    background:#f0fff4;
+    border-left:6px solid #2ecc71;
+    border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>MÔ PHỎNG NƯỚC CỨNG – CHUYỂN ĐỘNG ION</h1>
+<p>Chuyển động nhiệt – va chạm – tạo cặn</p>
+</header>
+
+<section>
+<h2>🧪 Thí nghiệm tương tác</h2>
+
+<div class="controls">
+<select id="loaiNuoc">
+    <option value="mem">Nước mềm</option>
+    <option value="tam">Nước cứng tạm thời</option>
+    <option value="vinh">Nước cứng vĩnh cửu</option>
+    <option value="toanphan">Nước cứng toàn phần</option>
+</select>
+<button onclick="taoNuoc()">Tạo nước</button>
+<button onclick="xaPhong()">Nhỏ xà phòng</button>
+<button class="clearBtn" onclick="xoaCan()">🧹 Xóa cặn</button>
+</div>
+
+<div class="lab">
+<div class="beaker" id="beaker">
+    <div class="water"></div>
+    <div class="foam" id="foam"></div>
+    <div class="precipitate" id="ppt"></div>
+</div>
+</div>
+
+<div class="result" id="ketqua"></div>
+</section>
+
+<script>
+const beaker = document.getElementById("beaker");
+const foam = document.getElementById("foam");
+const ppt = document.getElementById("ppt");
+const ketqua = document.getElementById("ketqua");
+
+let ions = [];
+let cluster = null;
+let clusterSize = 0;
+
+function random(min,max){
+    return Math.random()*(max-min)+min;
+}
+
+function clearAll(){
+    ions.forEach(i=>i.el.remove());
+    ions=[];
+    if(cluster) cluster.remove();
+    cluster=null;
+    clusterSize=0;
+    foam.style.height="0";
+    ppt.style.height="0";
+    ketqua.style.display="none";
+}
+
+function addIon(text, cls){
+    const el=document.createElement("div");
+    el.className="ion "+cls;
+    el.innerHTML=text;
+
+    const ion={
+        el,
+        x:random(30,190),
+        y:random(80,230),
+        vx:random(-0.25,0.25),
+        vy:random(-0.25,0.25),
+        active:true,
+        type:cls
+    };
+
+    el.style.left=ion.x+"px";
+    el.style.bottom=ion.y+"px";
+    beaker.appendChild(el);
+    ions.push(ion);
+}
+
+function taoNuoc(){
+    clearAll();
+    const loai=document.getElementById("loaiNuoc").value;
+
+    if(loai==="mem"){
+        for(let i=0;i<8;i++){ addIon("Na⁺","Na"); addIon("Cl⁻","Cl"); }
+    }
+    if(loai==="tam"){
+        for(let i=0;i<6;i++){ addIon("Ca²⁺","Ca"); addIon("HCO₃⁻","HCO3"); }
+    }
+    if(loai==="vinh"){
+        for(let i=0;i<6;i++){ addIon("Mg²⁺","Mg"); addIon("Cl⁻","Cl"); }
+    }
+    if(loai==="toanphan"){
+        for(let i=0;i<4;i++){
+            addIon("Ca²⁺","Ca");
+            addIon("Mg²⁺","Mg");
+            addIon("HCO₃⁻","HCO3");
+            addIon("Cl⁻","Cl");
+        }
+    }
+}
+
+function xaPhong(){
+    const loai=document.getElementById("loaiNuoc").value;
+    ketqua.style.display="none";
+
+    setTimeout(()=>{
+        if(loai==="mem"){
+            foam.style.height="80px";
+            ketqua.innerHTML="Nước mềm tạo nhiều bọt, không sinh cặn.";
+        }else{
+            foam.style.height="25px";
+            ppt.style.height="55px";
+
+            cluster=document.createElement("div");
+            cluster.className="cluster";
+            cluster.innerHTML="Cặn";
+            beaker.appendChild(cluster);
+
+            ions.forEach(i=>{
+                if(i.type==="Ca"||i.type==="Mg"){
+                    i.vx+=(120-i.x)*0.004;
+                    i.vy+=(10-i.y)*0.004;
+                }else{
+                    i.active=false;
+                    i.el.style.opacity=0;
+                }
+            });
+
+            ketqua.innerHTML="Ion Ca²⁺, Mg²⁺ phản ứng với xà phòng → tạo kết tủa.";
+        }
+        ketqua.style.display="block";
+    },2500);
+}
+
+function xoaCan(){
+    if(cluster) cluster.remove();
+    cluster=null;
+    clusterSize=0;
+    ppt.style.height="0";
+    foam.style.height="0";
+
+    ions.forEach(i=>{
+        i.active=true;
+        i.el.style.opacity=1;
+        i.vx=random(-0.25,0.25);
+        i.vy=random(-0.25,0.25);
+    });
+
+    ketqua.innerHTML="Cặn đã được loại bỏ. Các ion tiếp tục chuyển động tự do.";
+    ketqua.style.display="block";
+}
+
+/* ===== ANIMATION ===== */
+function animate(){
+    ions.forEach(i=>{
+        if(!i.active) return;
+
+        i.vx+=random(-0.02,0.02);
+        i.vy+=random(-0.02,0.02);
+
+        i.x+=i.vx;
+        i.y+=i.vy;
+
+        if(i.x<10||i.x>220) i.vx*=-1;
+        if(i.y<8){ i.y=8; i.vy*=-0.3; }
+        if(i.y>260) i.vy*=-1;
+
+        i.el.style.left=i.x+"px";
+        i.el.style.bottom=i.y+"px";
+
+        if(cluster&&(i.type==="Ca"||i.type==="Mg")){
+            const dx=120-i.x, dy=10-i.y;
+            if(Math.sqrt(dx*dx+dy*dy)<14){
+                i.active=false;
+                i.el.remove();
+                clusterSize++;
+                cluster.style.width=40+clusterSize*5+"px";
+                cluster.style.height=40+clusterSize*5+"px";
+                cluster.innerHTML="Cặn<br>"+clusterSize+" ion";
+            }
+        }
+    });
+    requestAnimationFrame(animate);
+}
+animate();
+</script>
+
+</body>
+</html>
